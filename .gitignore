@@ -69,3 +69,4 @@ __pycache__/
 .prowl/setup-applies.json
 .prowl-setup.lock
 # /prowl-agent: derived state
+.idea/
