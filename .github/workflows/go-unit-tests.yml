@@ -1,11 +1,12 @@
 name: Go unit tests
 
 # Build + test gates for the Go modules no other workflow covered: the ryoku
-# CLI (update / doctor / materialize, the no-migrations delivery spine), the
-# shell IPC daemon, the window-manager seam (ryoku/wm, vendored into every Go
-# consumer), the standalone shell installer, and the three app backends
-# (store, hub, rashin). The build step alone is load-bearing: these ship as
-# prebuilt binaries or compile during ISO and package builds, and an ipc
+# backend contracts, CLI (update / doctor / materialize, the no-migrations
+# delivery spine), the shell IPC daemon, the window-manager seam (ryoku/wm,
+# vendored into every Go consumer), the standalone shell installer, and the
+# three app backends (store, hub, rashin). The build step alone is load-bearing:
+# these ship as prebuilt binaries or compile during ISO and package builds, and
+# an ipc
 # compile break once reached unstable-dev unseen because nothing built the
 # package in CI. The store, hub and rashin backends carry 46 test files
 # between them that nothing ran, which is the same hole one step later:
@@ -16,6 +17,7 @@ name: Go unit tests
 on:
   pull_request:
     paths:
+      - 'ryoku/backend/**'
       - 'ryoku/cli/**'
       - 'ryoku/shell/ipc/**'
       - 'ryoku/wm/**'
@@ -29,6 +31,7 @@ on:
       - main
       - unstable-dev
     paths:
+      - 'ryoku/backend/**'
       - 'ryoku/cli/**'
       - 'ryoku/shell/ipc/**'
       - 'ryoku/wm/**'
@@ -43,6 +46,26 @@ permissions:
   contents: read
 
 jobs:
+  backend:
+    name: system backend contracts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: ryoku/backend/go.mod
+
+      - name: Build, vet, and test
+        shell: bash
+        working-directory: ryoku/backend
+        run: |
+          go build ./...
+          go vet ./...
+          go test ./...
+
   cli:
     name: ryoku CLI (update/doctor/materialize)
     runs-on: ubuntu-latest
