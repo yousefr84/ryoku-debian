@@ -151,6 +151,42 @@ func TestAvailable(t *testing.T) {
 	}
 }
 
+func TestOwnerOf(t *testing.T) {
+	runner := &commandMock{t: t, calls: []commandCall{
+		{
+			name: "pacman", args: []string{"-Qo", "--", "/usr/bin/bash"},
+			output: "/usr/bin/bash is owned by bash 5.3.3-1\n",
+		},
+	}}
+
+	got, found, err := NewPackageFacts(runner).OwnerOf(context.Background(), "/usr/bin/bash")
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner.done()
+	if !found || got.Name != "bash" || got.Version != "5.3.3-1" {
+		t.Fatalf("OwnerOf() = %#v, %t, want bash 5.3.3-1", got, found)
+	}
+}
+
+func TestOwnerOfReportsUnownedPath(t *testing.T) {
+	runner := &commandMock{t: t, calls: []commandCall{
+		{
+			name: "pacman", args: []string{"-Qo", "--", "/tmp/unowned"},
+			output: "error: No package owns /tmp/unowned\n", err: errors.New("exit status 1"),
+		},
+	}}
+
+	got, found, err := NewPackageFacts(runner).OwnerOf(context.Background(), "/tmp/unowned")
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner.done()
+	if found || got != (backend.Package{}) {
+		t.Fatalf("OwnerOf() = %#v, %t, want no owner", got, found)
+	}
+}
+
 func TestCompareVersions(t *testing.T) {
 	runner := &commandMock{t: t, calls: []commandCall{
 		{name: "vercmp", args: []string{"1.0-1", "2.0-1"}, output: "-1\n"},

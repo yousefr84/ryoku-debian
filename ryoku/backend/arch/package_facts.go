@@ -14,6 +14,8 @@ type PackageFacts struct {
 	runner CommandRunner
 }
 
+var _ backend.PackageFacts = (*PackageFacts)(nil)
+
 // NewPackageFacts builds an Arch package facts adapter. A nil runner selects
 // the host command executor; tests and embedding applications may inject one.
 func NewPackageFacts(runner CommandRunner) *PackageFacts {
@@ -102,6 +104,23 @@ func (f *PackageFacts) Query(ctx context.Context, names []string) ([]backend.Pac
 	return states, nil
 }
 
+func (f *PackageFacts) OwnerOf(ctx context.Context, path string) (backend.Package, bool, error) {
+	args := []string{"-Qo", "--", path}
+	output, err := f.runner.Run(ctx, "pacman", args...)
+	if err != nil {
+		if noPackageOwns(output) {
+			return backend.Package{}, false, nil
+		}
+		return backend.Package{}, false, commandError("pacman", args, output, err)
+	}
+
+	pkg, parseErr := parseOwner(output)
+	if parseErr != nil {
+		return backend.Package{}, false, fmt.Errorf("parse package owner: %w", parseErr)
+	}
+	return pkg, true, nil
+}
+
 func (f *PackageFacts) Available(ctx context.Context, names []string) ([]backend.Package, error) {
 	if len(names) == 0 {
 		return []backend.Package{}, nil
@@ -166,4 +185,8 @@ func onlyPackageNotFound(output []byte) bool {
 		}
 	}
 	return found
+}
+
+func noPackageOwns(output []byte) bool {
+	return strings.HasPrefix(strings.TrimSpace(string(output)), "error: No package owns ")
 }

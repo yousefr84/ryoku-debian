@@ -97,6 +97,24 @@ func packagesByName(packages []backend.Package) map[string]backend.Package {
 	return byName
 }
 
+func parseOwner(output []byte) (backend.Package, error) {
+	const separator = " is owned by "
+	line := strings.TrimSpace(string(output))
+	_, owner, ok := strings.Cut(line, separator)
+	if !ok {
+		return backend.Package{}, fmt.Errorf("invalid value %q", line)
+	}
+	parts := strings.Fields(owner)
+	if len(parts) != 2 {
+		return backend.Package{}, fmt.Errorf("invalid value %q", line)
+	}
+	return backend.Package{
+		Name:    parts[0],
+		Version: parts[1],
+		Source:  backend.PackageSourceUnknown,
+	}, nil
+}
+
 func packageSource(repository, installedFrom string) backend.PackageSource {
 	switch {
 	case repository == "ryoku" || installedFrom == "ryoku":
