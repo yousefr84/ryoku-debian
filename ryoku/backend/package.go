@@ -58,17 +58,28 @@ type RemovePlan struct {
 	Warnings         []string
 }
 
-// PackageManager owns native package inventory, resolution, and transactions.
-// ApplyInstall and ApplyRemove must reject plans whose state fingerprint no
-// longer matches the native package database.
-type PackageManager interface {
+// PackageFacts owns read-only native package inventory and resolution.
+type PackageFacts interface {
 	Inventory(ctx context.Context) ([]PackageState, error)
 	Query(ctx context.Context, names []string) ([]PackageState, error)
 	OwnerOf(ctx context.Context, path string) (Package, bool, error)
 	Available(ctx context.Context, names []string) ([]Package, error)
 	CompareVersions(a, b string) (int, error)
+}
+
+// PackageTransactions owns native package planning and mutation. ApplyInstall
+// and ApplyRemove must reject plans whose state fingerprint no longer matches
+// the native package database.
+type PackageTransactions interface {
 	PlanInstall(ctx context.Context, names []string) (InstallPlan, error)
 	ApplyInstall(ctx context.Context, plan InstallPlan) error
 	PlanRemove(ctx context.Context, names []string) (RemovePlan, error)
 	ApplyRemove(ctx context.Context, plan RemovePlan) error
+}
+
+// PackageManager preserves the complete package service contract for callers
+// that need both facts and transactions.
+type PackageManager interface {
+	PackageFacts
+	PackageTransactions
 }
