@@ -9,23 +9,22 @@ import (
 	backend "ryoku-backend"
 )
 
-// PackageManager is the Arch package adapter. This first slice intentionally
-// exposes only read-only package facts.
-type PackageManager struct {
+// PackageFacts is the Arch read-only package facts adapter.
+type PackageFacts struct {
 	runner CommandRunner
 }
 
-// NewPackageManager builds an Arch package adapter. A nil runner selects the
-// host command executor; tests and embedding applications may inject one.
-func NewPackageManager(runner CommandRunner) *PackageManager {
+// NewPackageFacts builds an Arch package facts adapter. A nil runner selects
+// the host command executor; tests and embedding applications may inject one.
+func NewPackageFacts(runner CommandRunner) *PackageFacts {
 	if runner == nil {
 		runner = execRunner{}
 	}
-	return &PackageManager{runner: runner}
+	return &PackageFacts{runner: runner}
 }
 
-func (m *PackageManager) Inventory(ctx context.Context) ([]backend.PackageState, error) {
-	output, err := m.run(ctx, "pacman", "-Qi")
+func (f *PackageFacts) Inventory(ctx context.Context) ([]backend.PackageState, error) {
+	output, err := f.run(ctx, "pacman", "-Qi")
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +36,7 @@ func (m *PackageManager) Inventory(ctx context.Context) ([]backend.PackageState,
 		return []backend.PackageState{}, nil
 	}
 
-	explicit, err := m.nameSet(ctx, "-Qqe")
+	explicit, err := f.nameSet(ctx, "-Qqe")
 	if err != nil {
 		return nil, err
 	}
@@ -53,12 +52,12 @@ func (m *PackageManager) Inventory(ctx context.Context) ([]backend.PackageState,
 	return states, nil
 }
 
-func (m *PackageManager) Query(ctx context.Context, names []string) ([]backend.PackageState, error) {
+func (f *PackageFacts) Query(ctx context.Context, names []string) ([]backend.PackageState, error) {
 	if len(names) == 0 {
 		return []backend.PackageState{}, nil
 	}
 
-	installedOutput, installedErr := m.runner.Run(ctx, "pacman", append([]string{"-Qi"}, names...)...)
+	installedOutput, installedErr := f.runner.Run(ctx, "pacman", append([]string{"-Qi"}, names...)...)
 	if installedErr != nil && !onlyPackageNotFound(installedOutput) {
 		return nil, commandError("pacman", append([]string{"-Qi"}, names...), installedOutput, installedErr)
 	}
@@ -67,13 +66,13 @@ func (m *PackageManager) Query(ctx context.Context, names []string) ([]backend.P
 		return nil, fmt.Errorf("parse installed package query: %w", err)
 	}
 
-	explicitOutput, explicitErr := m.runner.Run(ctx, "pacman", "-Qqe")
+	explicitOutput, explicitErr := f.runner.Run(ctx, "pacman", "-Qqe")
 	if explicitErr != nil {
 		return nil, commandError("pacman", []string{"-Qqe"}, explicitOutput, explicitErr)
 	}
 	explicit := parseNames(explicitOutput)
 
-	availableOutput, availableErr := m.runner.Run(ctx, "pacman", append([]string{"-Si"}, names...)...)
+	availableOutput, availableErr := f.runner.Run(ctx, "pacman", append([]string{"-Si"}, names...)...)
 	if availableErr != nil && !onlyPackageNotFound(availableOutput) {
 		return nil, commandError("pacman", append([]string{"-Si"}, names...), availableOutput, availableErr)
 	}
@@ -103,12 +102,12 @@ func (m *PackageManager) Query(ctx context.Context, names []string) ([]backend.P
 	return states, nil
 }
 
-func (m *PackageManager) Available(ctx context.Context, names []string) ([]backend.Package, error) {
+func (f *PackageFacts) Available(ctx context.Context, names []string) ([]backend.Package, error) {
 	if len(names) == 0 {
 		return []backend.Package{}, nil
 	}
 	args := append([]string{"-Si"}, names...)
-	output, err := m.runner.Run(ctx, "pacman", args...)
+	output, err := f.runner.Run(ctx, "pacman", args...)
 	if err != nil && !onlyPackageNotFound(output) {
 		return nil, commandError("pacman", args, output, err)
 	}
@@ -119,8 +118,8 @@ func (m *PackageManager) Available(ctx context.Context, names []string) ([]backe
 	return packages, nil
 }
 
-func (m *PackageManager) CompareVersions(a, b string) (int, error) {
-	output, err := m.runner.Run(context.Background(), "vercmp", a, b)
+func (f *PackageFacts) CompareVersions(a, b string) (int, error) {
+	output, err := f.runner.Run(context.Background(), "vercmp", a, b)
 	if err != nil {
 		return 0, commandError("vercmp", []string{a, b}, output, err)
 	}
@@ -131,16 +130,16 @@ func (m *PackageManager) CompareVersions(a, b string) (int, error) {
 	return comparison, nil
 }
 
-func (m *PackageManager) nameSet(ctx context.Context, args ...string) (map[string]bool, error) {
-	output, err := m.run(ctx, "pacman", args...)
+func (f *PackageFacts) nameSet(ctx context.Context, args ...string) (map[string]bool, error) {
+	output, err := f.run(ctx, "pacman", args...)
 	if err != nil {
 		return nil, err
 	}
 	return parseNames(output), nil
 }
 
-func (m *PackageManager) run(ctx context.Context, name string, args ...string) ([]byte, error) {
-	output, err := m.runner.Run(ctx, name, args...)
+func (f *PackageFacts) run(ctx context.Context, name string, args ...string) ([]byte, error) {
+	output, err := f.runner.Run(ctx, name, args...)
 	if err != nil {
 		return nil, commandError(name, args, output, err)
 	}

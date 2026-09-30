@@ -55,7 +55,7 @@ func TestInventory(t *testing.T) {
 		{name: "pacman", args: []string{"-Qqe"}, output: "bash\nryoku-shell\n"},
 	}}
 
-	got, err := NewPackageManager(runner).Inventory(context.Background())
+	got, err := NewPackageFacts(runner).Inventory(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +107,7 @@ func TestQueryReportsInstalledAvailableAndMissingPackages(t *testing.T) {
 		},
 	}}
 
-	got, err := NewPackageManager(runner).Query(
+	got, err := NewPackageFacts(runner).Query(
 		context.Background(), []string{"alpha", "local-tool", "missing"},
 	)
 	if err != nil {
@@ -140,7 +140,7 @@ func TestAvailable(t *testing.T) {
 		},
 	}}
 
-	got, err := NewPackageManager(runner).Available(context.Background(), []string{"linux", "ryoku-shell"})
+	got, err := NewPackageFacts(runner).Available(context.Background(), []string{"linux", "ryoku-shell"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +157,7 @@ func TestCompareVersions(t *testing.T) {
 		{name: "vercmp", args: []string{"2.0-1", "2.0-1"}, output: "0\n"},
 		{name: "vercmp", args: []string{"3.0-1", "2.0-1"}, output: "1\n"},
 	}}
-	manager := NewPackageManager(runner)
+	facts := NewPackageFacts(runner)
 	for _, test := range []struct {
 		a, b string
 		want int
@@ -166,7 +166,7 @@ func TestCompareVersions(t *testing.T) {
 		{a: "2.0-1", b: "2.0-1", want: 0},
 		{a: "3.0-1", b: "2.0-1", want: 1},
 	} {
-		got, err := manager.CompareVersions(test.a, test.b)
+		got, err := facts.CompareVersions(test.a, test.b)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -182,7 +182,7 @@ func TestCommandFailureIncludesNativeDiagnostic(t *testing.T) {
 		{name: "pacman", args: []string{"-Si", "alpha"}, output: "error: database is invalid\n", err: errors.New("exit status 1")},
 	}}
 
-	_, err := NewPackageManager(runner).Available(context.Background(), []string{"alpha"})
+	_, err := NewPackageFacts(runner).Available(context.Background(), []string{"alpha"})
 	if err == nil || !strings.Contains(err.Error(), "database is invalid") {
 		t.Fatalf("Available() error = %v", err)
 	}
@@ -194,7 +194,7 @@ func TestCompareVersionsRejectsInvalidOutput(t *testing.T) {
 		{name: "vercmp", args: []string{"one", "two"}, output: "newer\n"},
 	}}
 
-	_, err := NewPackageManager(runner).CompareVersions("one", "two")
+	_, err := NewPackageFacts(runner).CompareVersions("one", "two")
 	if err == nil || !strings.Contains(err.Error(), "parse vercmp result") {
 		t.Fatalf("CompareVersions() error = %v", err)
 	}
