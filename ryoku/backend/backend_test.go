@@ -7,6 +7,14 @@ import (
 
 type packageFactsStub struct{}
 
+type platformDetectorStub struct {
+	identity PlatformIdentity
+}
+
+func (s platformDetectorStub) Detect(context.Context) (PlatformIdentity, error) {
+	return s.identity, nil
+}
+
 func (packageFactsStub) Inventory(context.Context) ([]PackageState, error) {
 	return nil, nil
 }
@@ -105,6 +113,7 @@ func (driverManagerStub) Verify(context.Context, []DriverInfo) ([]DriverInfo, er
 }
 
 var (
+	_ PlatformDetector     = platformDetectorStub{}
 	_ PackageFacts        = packageFactsStub{}
 	_ PackageTransactions = packageTransactionsStub{}
 	_ PackageManager      = packageManagerStub{}
@@ -112,6 +121,22 @@ var (
 	_ BootManager         = bootManagerStub{}
 	_ DriverManager       = driverManagerStub{}
 )
+
+func TestPlatformDetectorReturnsIdentity(t *testing.T) {
+	want := PlatformIdentity{
+		DistributionID:      "fixture",
+		DistributionVersion: "1",
+		NativeArchitecture:  "x86_64",
+	}
+
+	got, err := (platformDetectorStub{identity: want}).Detect(context.Background())
+	if err != nil {
+		t.Fatalf("Detect returned an error: %v", err)
+	}
+	if got != want {
+		t.Fatalf("identity = %#v, want %#v", got, want)
+	}
+}
 
 func TestSystemBackendComposesContracts(t *testing.T) {
 	packageFacts := packageFactsStub{}

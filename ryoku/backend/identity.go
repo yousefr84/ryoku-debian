@@ -1,5 +1,7 @@
 package backend
 
+import "context"
+
 // BackendID identifies a system-lifecycle implementation.
 type BackendID string
 
@@ -29,4 +31,10 @@ type PlatformIdentity struct {
 	MarkerMatches          bool
 	ReleaseChannel         string
 	InstallationMode       InstallationMode
+}
+
+// PlatformDetector reports platform facts for backend selection. It does not
+// select or construct a backend.
+type PlatformDetector interface {
+	Detect(context.Context) (PlatformIdentity, error)
 }
